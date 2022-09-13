@@ -10,21 +10,13 @@ elseif ~isvalid(mapp)
     mars_rover_app
 end
 
-cla(mapp.RockDetectionAxes);
-cla(mapp.OnlinePathPlansAxes);
 cla(mapp.OutputAxes_1);
 cla(mapp.OutputAxes_2);
 cla(mapp.OutputAxes_3);
 cla(mapp.OutputAxes_4);
 
-plotSurfaceForCamera( mapp.RightNavCamAxes,Terrain.xg,Terrain.yg,Terrain.z_heights,Terrain.znew,...
-    [roverPath.x,...
-    roverPath.y,...
-    roverPath.z]);
-plotSurfaceForCamera(mapp.LeftNavCamAxes,Terrain.xg,Terrain.yg,Terrain.z_heights,Terrain.znew,...
-    [roverPath.x,...
-    roverPath.y,...
-    roverPath.z]);
+plotSurfaceForCamera( mapp.RightNavCamAxes,Terrain.xg,Terrain.yg,Terrain.z_heights,Terrain.znew);
+plotSurfaceForCamera(mapp.LeftNavCamAxes,Terrain.xg,Terrain.yg,Terrain.z_heights,Terrain.znew);
 
 mapp.SimulateButtonEx2.Enable = 'on';
 mapp.SimulateButtonEx2.Text = 'Stop';
@@ -45,23 +37,23 @@ listner_DL =  @(app1, event1) plotRuntimeRockDetection(app1,mapp.RockDetectionAx
 h_DL   = add_exec_event_listener(blk_DL, ...
 'PostOutputs', listner_DL);
 
-clear plotRuntimePose;
-blk_pose = [model '/Online Planner/ToApp'];
-listner_pose =  @(app, event) plotRuntimePose(app,mapp.OnlinePathPlansAxes);
-h_pose  = add_exec_event_listener(blk_pose, ...
-'PostOutputs', listner_pose);
+% clear plotRuntimePose;
+% blk_pose = [model '/Online Planner/ToApp'];
+% listner_pose =  @(app, event) plotRuntimePose(app,mapp.OnlinePathPlansAxes);
+% h_pose  = add_exec_event_listener(blk_pose, ...
+% 'PostOutputs', listner_pose);
 
 
 mapp.TabGroup.SelectedTab = mapp.RoverCamsTab;
-
-SM_openFrames = javaMethodEDT('getFrames', 'java.awt.Frame');
-for idx = 1:numel(SM_openFrames)
-    if strcmp(char(SM_openFrames(idx).getName),'MechEditorDTClientFrame')
-        if strcmp(char(SM_openFrames(idx).getClient),'Mechanics Explorer-sm_mars_rover')
-            javaMethodEDT('hide', SM_openFrames(idx));
-        end
-    end
-end
+% 
+% SM_openFrames = javaMethodEDT('getFrames', 'java.awt.Frame');
+% for idx = 1:numel(SM_openFrames)
+%     if strcmp(char(SM_openFrames(idx).getName),'MechEditorDTClientFrame')
+%         if strcmp(char(SM_openFrames(idx).getClient),'Mechanics Explorer-sm_mars_rover')
+%             javaMethodEDT('hide', SM_openFrames(idx));
+%         end
+%     end
+% end
 figure(mapp.MarsRoverNavigationAppUIFigure);
 % [18.9,18.1]
 %[19.9,17.7]

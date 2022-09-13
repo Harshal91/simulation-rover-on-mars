@@ -36,4 +36,7 @@ if exist('sm_mars_rover_out_ex3') ~= 0
     hold(mapp.OutputAxes_3,'off');
 
     mars_rover_plot_rover_path_fn(mapp.OutputAxes_4,sm_mars_rover_out_ex3,roverPath);
+   
+    axis(mapp.OutputAxes_4,'equal');
+
 end

@@ -9,7 +9,7 @@ load(['mars_rover_data',filesep,'roverPath1.mat']);
 load(['mars_rover_data',filesep,'roverPath2.mat']);
 switch pathNum
     case 1
-         roverPath = rover_path1;
+%          roverPath = roverPath;
     case 2
          roverPath = rover_path2;
     otherwise

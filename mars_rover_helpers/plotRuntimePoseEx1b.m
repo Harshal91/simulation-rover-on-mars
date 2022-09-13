@@ -47,12 +47,12 @@ if isempty(counter_pose)
     light(ax,'Style','infinite')
     lighting(ax,'gouraud')
     
-    plot3(ax,originalPath(:,1),originalPath(:,2),originalPath(:,3),'--','LineWidth',1.5,'Color',[0 0 1],'DisplayName','Original planned path');
-    plot3(ax,originalPath(1,1),originalPath(1,2),originalPath(1,3),'s','MarkerSize',10,'LineWidth',2,'Color',[1 0 1],'DisplayName','Start location');
-    plot3(ax,originalPath(end,1),originalPath(end,2),originalPath(end,3),'O','MarkerSize',15,'LineWidth',2,'Color',[0 1 0],'DisplayName','Goal location');     
+    p1 = plot3(ax,originalPath(:,1),originalPath(:,2),originalPath(:,3),'--','LineWidth',1.5,'Color',[0 0 1],'DisplayName','Original planned path');
+    p2 = plot3(ax,originalPath(1,1),originalPath(1,2),originalPath(1,3),'s','MarkerSize',10,'LineWidth',2,'Color',[1 0 1],'DisplayName','Start location');
+    p3 = plot3(ax,originalPath(end,1),originalPath(end,2),originalPath(end,3),'O','MarkerSize',15,'LineWidth',2,'Color',[0 1 0],'DisplayName','Goal location');     
     
     marker_h = plot3(ax,pose(1),pose(2),6,'s','MarkerSize',12,'LineWidth',3,'Color',[1.0 1.0 0.8],'DisplayName','Rover');    
-    legend(ax,'Location','best')
+    legend(ax,[p1,p2,p3,marker_h],'Location','north','NumColumns',2)
     hold(ax,'off')
     view(ax,2)  
 end

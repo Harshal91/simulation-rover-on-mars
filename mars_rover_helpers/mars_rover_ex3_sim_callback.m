@@ -10,8 +10,6 @@ elseif ~isvalid(mapp)
     mars_rover_app
 end
 
-cla(mapp.RockDetectionAxes);
-cla(mapp.OnlinePathPlansAxes);
 cla(mapp.OutputAxes_1);
 cla(mapp.OutputAxes_2);
 cla(mapp.OutputAxes_3);
@@ -58,12 +56,12 @@ h_pose  = add_exec_event_listener(blk_pose, ...
 
 mapp.TabGroup.SelectedTab = mapp.RoverCamsTab;
 
-SM_openFrames = javaMethodEDT('getFrames', 'java.awt.Frame');
-for idx = 1:numel(SM_openFrames)
-    if strcmp(char(SM_openFrames(idx).getName),'MechEditorDTClientFrame')
-        if strcmp(char(SM_openFrames(idx).getClient),'Mechanics Explorer-sm_mars_rover')
-        javaMethodEDT('hide', SM_openFrames(idx));
-        end
-    end
-end
+% SM_openFrames = javaMethodEDT('getFrames', 'java.awt.Frame');
+% for idx = 1:numel(SM_openFrames)
+%     if strcmp(char(SM_openFrames(idx).getName),'MechEditorDTClientFrame')
+%         if strcmp(char(SM_openFrames(idx).getClient),'Mechanics Explorer-sm_mars_rover')
+%         javaMethodEDT('hide', SM_openFrames(idx));
+%         end
+%     end
+% end
 figure(mapp.MarsRoverNavigationAppUIFigure);

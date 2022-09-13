@@ -45,12 +45,12 @@ mapp.statusLabel.Text = 'Running';
 mapp.SimulateButtonEx1a.Enable = 'on';
 mapp.SimulateButtonEx1a.Text = 'Stop';
 
-SM_openFrames = javaMethodEDT('getFrames', 'java.awt.Frame');
-for idx = 1:numel(SM_openFrames)
-    if strcmp(char(SM_openFrames(idx).getName),'MechEditorDTClientFrame')
-        if strcmp(char(SM_openFrames(idx).getClient),'Mechanics Explorer-sm_mars_rover')
-            javaMethodEDT('hide', SM_openFrames(idx));
-        end
-    end
-end
+% SM_openFrames = javaMethodEDT('getFrames', 'java.awt.Frame');
+% for idx = 1:numel(SM_openFrames)
+%     if strcmp(char(SM_openFrames(idx).getName),'MechEditorDTClientFrame')
+%         if strcmp(char(SM_openFrames(idx).getClient),'Mechanics Explorer-sm_mars_rover')
+%             javaMethodEDT('hide', SM_openFrames(idx));
+%         end
+%     end
+% end
 figure(mapp.MarsRoverNavigationAppUIFigure);

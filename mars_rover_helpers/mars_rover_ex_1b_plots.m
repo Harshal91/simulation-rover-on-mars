@@ -5,7 +5,7 @@
 cla(mapp.OutputAxes_1)
 cla(mapp.OutputAxes_2)
 cla(mapp.OutputAxes_3)
- cla(mapp.OutputAxes_4)    
+cla(mapp.OutputAxes_4)    
 pause(0.005);
 
 if exist('sm_mars_rover_out_ex1b') ~= 0
@@ -45,6 +45,9 @@ if exist('sm_mars_rover_out_ex1b') ~= 0
     plot(mapp.OutputAxes_4,x_egress, y_egress,'b--o','LineWidth',0.5,'DisplayName','Egress Path');
     plot(mapp.OutputAxes_4,xout,yout,'-','LineWidth',2.5,'DisplayName','ActualPath','Color',[0.1 0.6745 0.1882]);
     hold(mapp.OutputAxes_4,'off');
+
+    axis(mapp.OutputAxes_4,'equal');
+    legend(mapp.OutputAxes_4,'Location','Best');
 
 end
     

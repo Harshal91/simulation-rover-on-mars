@@ -23,7 +23,7 @@ if any(dir == -1)
         [refpath,dir,solInfo] = plan(planner,startLocation,[endLocation(1:2) newEndOrientation]);
         if ~any(dir == -1)
             endLocation(3) = newEndOrientation;
-            warndlg(['Planner cannot find a forward direction path for the desired goal orientation. Solved for a new goal orientation of ',num2str(newEndOrientation) ,' deg'])    ;
+            %warndlg(['Planner cannot find a forward direction path for the desired goal orientation. Solved for a new goal orientation of ',num2str(newEndOrientation) ,' deg'])    ;
             return;
         end
     end

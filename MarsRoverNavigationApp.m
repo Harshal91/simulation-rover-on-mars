@@ -103,6 +103,7 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
         statusBar;
         statusBarGrid;
         statusLabel;
+        isAppLoaded;
     end
 
     properties(Access = private)
@@ -116,6 +117,9 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
         TotalPathLengthmEditFieldLabel
         EstimatedMaxInclinationdegEditField
         EstimatedMaxInclinationdegEditFieldLabel
+        lastXValue
+        lastGoalLocationValue
+        
 
         % startupFcn
         map; % Description
@@ -142,18 +146,27 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
     end
 
     methods (Access = public)
-        function app = MarsRoverNavigationApp()
+         function app = MarsRoverNavigationApp()
             buildUI(app);
-            app.MarsRoverNavigationAppUIFigure.Visible = 'on';
+            app.MarsRoverNavigationAppUIFigure.Visible = 'off';
             registerApp(app, app.MarsRoverNavigationAppUIFigure);
-            startupFcn(app);
+            app.isAppLoaded = false;
+            app.RightPanel.Visible = 'off';
+            app.SimulateButtonEx1.Enable = 'off';
+            app.SimulateButtonEx3.Enable = 'off';
+            app.startupFcn();
+            pause(8);            
+            app.MarsRoverNavigationAppUIFigure.Visible = 'on';
+            app.RightPanel.Visible = 'on';
+            app.isAppLoaded = true;
         end
 
         function startupFcn(app)
 
+            warning('off','MATLAB:callback:DeletedSource')
             % re-do
             addpath("mars_rover_helpers");
-            app.Exercise1Panel.expand;
+            app.Exercise1Panel.collapse;
             app.Exercise2Panel.collapse;
             app.Exercise3Panel.collapse;
             % Remove Data tip interaction from both UI Axes. Since we
@@ -214,11 +227,11 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
 
             % default values for pan & pitch
             app.CameraPitchEditField.Value = '10';
-            app.CameraPanEditField2Ex1.Value = '90';
-            app.CameraPanEditField1Ex1.Value  = '0';
+            app.CameraPanEditField2Ex1.Value = '120';
+            app.CameraPanEditField1Ex1.Value  = '-120';
 
-            app.CameraPanEditField2Ex2.Value = '90';
-            app.CameraPanEditField1Ex2.Value  = '-90';
+            app.CameraPanEditField2Ex2.Value = '120';
+            app.CameraPanEditField1Ex2.Value  = '-120';
             % Default XY Start and end Location
             startLocation = [5 24 0]; % x y
             endLocation = [19.9 17.7 0];
@@ -231,21 +244,24 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
             app.GoalLocationYEditFieldEx3.Value = num2str(endLocation(2));
             app.GoalLocationTEditFieldEx3.Value = num2str(endLocation(3));
 
+            app.lastGoalLocationValue = endLocation;
+
             app.DetectionThresholdEditField.Value = num2str(0.55);
 
 
             % For Ex 1
             startLocation_ex1 = startLocation;
-            endLocation_ex1 = [startLocation(1)+12 startLocation(2) startLocation(3)];
+            endLocation_ex1 = [startLocation(1)+5 startLocation(2) startLocation(3)];
 
             app.StartLocationXEditField.Value = num2str(startLocation_ex1(1));
             app.StartLocationYEditField.Value = num2str(startLocation_ex1(2));
             app.StartLocationTEditField.Value = num2str(startLocation_ex1(3));
 
             app.GoalLocationXEditField.Value = num2str(endLocation_ex1(1));
+            app.lastXValue = endLocation_ex1(1);
             app.GoalLocationYEditField.Value = num2str(endLocation_ex1(2));
             app.GoalLocationTEditField.Value = num2str(endLocation_ex1(3));
-
+            
             %% only for visualization
             % Obtain Z coordinate for the XY start and end location using
             % the scattered interpolant
@@ -290,6 +306,8 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
         % Button pushed function: UpdateVisualizationButton
         function UpdateVisualizationButtonPushed(app, event)
 
+            app.TabGroup.SelectedTab = app.PathPlannerTab;
+
             if ~strcmp(event.Source.Tag,'MaxSlopeAng') && ~strcmp(event.Source.Tag,'RocksTree') &&...
                     ~strcmp(event.Source.Tag,'Simulate')
 
@@ -298,7 +316,7 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
                     data = app.dcm_obj.getCursorInfo;
                     if ~isempty(data)
                         if length(data)~=1
-                            error("Invalid number of points choosen. Choose only 1 point before updating data.")
+                            uialert(app.MarsRoverNavigationAppUIFigure,"Invalid number of goal locations choosen. Only one goal location is supported.",'Invalid number of goal locations')
                         else
                             % startLocationXYZ = [data(end).Position(1:2) app.interpolantF(data(end).Position(1:2))];
                             endLocationXYZ = [data(end).Position(1:2) app.interpolantF(data(end).Position(1:2))];
@@ -397,6 +415,8 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
 
         % Button pushed function: PlanPathButton
         function PlanPathButtonPushed(app, event)
+            
+            app.TabGroup.SelectedTab = app.PathPlannerTab;
 
             UpdateVisualizationButtonPushed(app, event);
 
@@ -406,14 +426,26 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
             startLocation = [str2double(app.StartLocationXEditFieldEx3.Value) str2double(app.StartLocationYEditFieldEx3.Value) str2double(app.StartLocationTEditFieldEx3.Value)];
             endLocation = [str2double(app.GoalLocationXEditFieldEx3.Value) str2double(app.GoalLocationYEditFieldEx3.Value) str2double(app.GoalLocationTEditFieldEx3.Value)];
 
+            if any(endLocation ~= app.lastGoalLocationValue)
+                app.SimulateButtonEx3.Enable = 'off';
+            end
+
+            app.lastGoalLocationValue = endLocation;
 
             if endLocation(1) > 35 || endLocation(1) < 5 || endLocation(2) > 35 || endLocation(2) < 5
-                errordlg("Goal location is outside of traversable region");
+                uialert(app.MarsRoverNavigationAppUIFigure,"Goal location is outside of traversable region. Both x and y values should be greater than 5 meters and less than 35 meters.",'Invalid goal location');
+                return;
+            end
+
+            if all(endLocation(1:2) == startLocation(1:2))
+                uialert(app.MarsRoverNavigationAppUIFigure,"Goal location is same as start location. Select a different goal location",'Invalid goal location');
                 return;
             end
 
 
-            f = waitbar(0.5,'Finding path...','Name','Path Planner');
+            f = uiprogressdlg(app.MarsRoverNavigationAppUIFigure,'Title','Path Planner','Message','Finding path...');
+            f.Value = 0.5;
+            f.Cancelable = 'on';
             plannerType = 'Hybrid A*';
 
             switch(plannerType)
@@ -425,20 +457,20 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
                             1.5);
 
                         if ~solInfo.IsPathFound
-                            errordlg('Could not find a valid path. Change the desired pose or planner parameters.')
-                            delete(f);
+                            uialert(app.MarsRoverNavigationAppUIFigure,'Could not find a valid path. Change the desired yaw angle and try again.','Path Planner Error')
+                            close(f);
                             return;
                         else
                             if any(dir == -1)
                                 warndlg('Planned path has reverse directions. Change the desired pose or planner parameters.')
                             end
-                            waitbar(1,f,'Path found');
-
+                            f.Message = 'Path found';
+                            f.Value = 1;
                         end
-                        delete(f);
+                        close(f);
                     catch ME
-                        errordlg(ME.message);
-                        delete(f);
+                        uialert(app.MarsRoverNavigationAppUIFigure,ME.message,'Path Planner Error');
+                        close(f);
                         return;
                     end
 
@@ -469,8 +501,9 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
 
             assignin('base','map',app.map);
 
-            app.rover_path.x = refpath.States(:,1);
-            app.rover_path.y = refpath.States(:,2);
+            [x_new,y_new] = interpPath(refpath.States(:,1),refpath.States(:,2),17);
+            app.rover_path.x = x_new';
+            app.rover_path.y = y_new';
             app.rover_path.z = app.interpolantF(app.rover_path.x,...
                 app.rover_path.y);
 
@@ -528,15 +561,18 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
 
 
 
-            legend(surface_ax,'Location','northwest')
+            
 %             msgbox('Planned Path saved to mars_rover_data \ rover_path.mat');
 %             evalin('base',...
 %                 '[goal_loc,roverPath,sample_position,pointCloudPath] = rover_path_select(3);');
             assignin('base','mapData',app.map.getOccupancy);
+            app.lastGoalLocationValue = [str2double(app.GoalLocationXEditFieldEx3.Value) str2double(app.GoalLocationYEditFieldEx3.Value) str2double(app.GoalLocationTEditFieldEx3.Value)]; 
+            app.SimulateButtonEx3.Enable = 'on';
         end
 
         % Value changed function: PickGoalpointsinMapCheckBox
         function PickGoalpointsinMapCheckBoxValueChanged(app, event)
+            app.TabGroup.SelectedTab = app.PathPlannerTab;
             value = app.PickGoalpointsinMapCheckBox.Value;
             if value
                 set(app.TerrainAxes.Toolbar,'Visible','off')
@@ -557,23 +593,51 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
         end
 
         % Button pushed function: PlanPathButton
-        function PlanaEgressPathButtonPushed(app, event)
+        function PlanaEgressPathButtonPushed(app, event)           
 
+
+            % Error handling
+            app.TabGroup.SelectedTab = app.PathPlannerTab;
+            endLocationX = str2double(app.GoalLocationXEditField.Value);
+            
+            if endLocationX ~= app.lastXValue
+                app.SimulateButtonEx1.Enable = 'off';
+            end
+
+            startLocationX = str2double(app.StartLocationXEditField.Value);
+
+            if endLocationX(1) < startLocationX(1)
+                uialert(app.MarsRoverNavigationAppUIFigure,"Reverse directions are not supported. Select a goal X value which is greater than start X value.",'Invalid egress path')
+                return;
+            end
+            
+            if endLocationX(1) < 7 || endLocationX(1) > 15 
+                uialert(app.MarsRoverNavigationAppUIFigure,"Egress path should be, at least 2 meters and at most 10 meters long.",'Invalid egress path');
+                return;
+            end
+
+
+            %
             startLocation = [str2double(app.StartLocationXEditField.Value) str2double(app.StartLocationYEditField.Value) str2double(app.StartLocationTEditField.Value)];
             endLocation = [str2double(app.GoalLocationXEditField.Value) str2double(app.GoalLocationYEditField.Value) str2double(app.GoalLocationTEditField.Value)];
 
             if endLocation(1) < startLocation(1)
-                errordlg("Reverse directions are not supported. Select a goal X value which is greater than start X value.")
+                uialert("Reverse directions are not supported. Select a goal X value which is greater than start X value.",'Invalid egress path')
+                return;
+            end
+
+            if endLocation(1) < 7 || endLocation(1) > 15 
+                uialert(app.MarsRoverNavigationAppUIFigure,"Egress path should be, atleast 2 meters and atmost 10 meters long.",'Invalid egress path');
                 return;
             end
 
             if endLocation(1) > 35
-                errordlg("Goal location is outside of traversable region");
+                uialert(app.MarsRoverNavigationAppUIFigure,"Goal location is outside of traversable region. Both x and y values should be greater than 5 meters and less than 35 meters.",'Invalid goal location');
                 return;
             end
 
             if startLocation(1) < 5
-                errordlg("Start location is outside of traversable region");
+                uialert(app.MarsRoverNavigationAppUIFigure,"Goal location is outside of traversable region. Both x and y values should be greater than 5 meters and less than 35 meters.",'Invalid goal location');
                 return;
             end
 
@@ -601,16 +665,18 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
 
             
             tmp_roverPath = app.rover_path;
-            assignin('base','roverPath',tmp_roverPath);
+
+            assignin('base','rover_path_ex1',tmp_roverPath);
 
             tmp_pointCloud = [ app.rover_path.x   app.rover_path.y  app.rover_path.z];
-            assignin('base','pointCloudPath',tmp_pointCloud);
+            assignin('base','point_cloud_path_ex1',tmp_pointCloud);
 
 %             save(['mars_rover_data',filesep,'rover_path.mat'],'roverPath');
 %             evalin('base',...
 %                 '[goal_loc,roverPath,sample_position,pointCloudPath] = rover_path_select(3);');
             UpdateVisualizationButtonPushed(app, event);
-
+            app.SimulateButtonEx1.Enable = 'on';
+            app.lastXValue = str2double(app.GoalLocationXEditField.Value);                       
 
         end
 
@@ -664,20 +730,94 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
 
         end
 
-        function CameraEx1ValueChanged(app,event)
-            
-            pan_range = [str2double(app.CameraPanEditField1Ex1.Value) str2double(app.CameraPanEditField2Ex1.Value)];
-            evalin('base',['Rover.cam_pan_ex1 = [',num2str(pan_range),'];']);
-            if str2double(app.CameraPitchEditField.Value) < 10 || str2double(app.CameraPitchEditField.Value) > 30
-                errordlg("Pitch angle should be between 10 to 30 deg");
-                return;
-            end
-            evalin('base',['Rover.cam_pitch_ex1 = ',app.CameraPitchEditField.Value,';']);       
+%         function CameraEx1ValueChanged(app,event)
+%             
+%             pan_range = [str2double(app.CameraPanEditField1Ex1.Value) str2double(app.CameraPanEditField2Ex1.Value)];
+% 
+%             if str2double(app.CameraPanEditField1Ex1.Value) < -120 || str2double(app.CameraPanEditField1Ex1.Value) > 120
+%                 uialert(app.MarsRoverNavigationAppUIFigure,"Pan angle range should be between -120 to 120 deg",'Invalid Pan Angle Range');
+%                 app.SimulateButtonEx1a.Enable = 'off';
+%                 return;
+%             end
+%             
+%             if str2double(app.CameraPanEditField1Ex1.Value) == str2double(app.CameraPanEditField2Ex1.Value) 
+%                 uialert(app.MarsRoverNavigationAppUIFigure,"Start and end pan angle values should not be same",'Invalid Pan Angle Range');
+%                  app.SimulateButtonEx1a.Enable = 'off';
+%                 return;
+%             end
+% 
+%             evalin('base',['cam_pan_ex1 = [',num2str(pan_range),'];']);
+%             if str2double(app.CameraPitchEditField.Value) < 10 || str2double(app.CameraPitchEditField.Value) > 30
+%                 uialert(app.MarsRoverNavigationAppUIFigure,"Pitch angle should be between 10 to 30 deg",'Invalid Pitch Angle');
+%                 app.SimulateButtonEx1a.Enable = 'off';
+%                 return;
+%             end
+%             evalin('base',['cam_pitch_ex1 = ',app.CameraPitchEditField.Value,';']);
+% 
+%             app.SimulateButtonEx1a.Enable = 'on';
+%             CameraEx1ValueChanged2(app,event)
+% 
+%         end
 
-        end
+%          function CameraEx1ValueChanged2(app,event)
+%             
+%             pan_range = [str2double(app.CameraPanEditField1Ex1.Value) str2double(app.CameraPanEditField2Ex1.Value)];
+%            
+%             if str2double(app.CameraPanEditField2Ex1.Value) < -120 || str2double(app.CameraPanEditField2Ex1.Value) > 120
+%                 uialert(app.MarsRoverNavigationAppUIFigure,"Pan angle range should be between -120 to 120 deg",'Invalid Pan Angle Range');
+%                 app.SimulateButtonEx1a.Enable = 'off';
+%                 return;
+%             end
+% 
+%              if str2double(app.CameraPanEditField1Ex1.Value) == str2double(app.CameraPanEditField2Ex1.Value) 
+%                 uialert(app.MarsRoverNavigationAppUIFigure,"Start and End pan angle values should not be same",'Invalid Pan Angle Range');
+%                 app.SimulateButtonEx1a.Enable = 'off';
+%                 return;
+%             end
+% 
+%             evalin('base',['cam_pan_ex1 = [',num2str(pan_range),'];']);
+%             app.SimulateButtonEx1a.Enable = 'on';
+%             CameraEx1ValueChanged1(app,event)
+% 
+%            
+%         end
 
         function SimulateButtonEx1aButtonDown(app,event)
 
+
+
+            % error handling
+
+            pan_range = [str2double(app.CameraPanEditField1Ex1.Value) str2double(app.CameraPanEditField2Ex1.Value)];
+
+            if str2double(app.CameraPanEditField1Ex1.Value) < -120 || str2double(app.CameraPanEditField1Ex1.Value) > 120
+                uialert(app.MarsRoverNavigationAppUIFigure,"Pan angle range should be between -120 to 120 deg",'Invalid Pan Angle Range');
+               
+                return;
+            end
+
+            if str2double(app.CameraPanEditField2Ex1.Value) < -120 || str2double(app.CameraPanEditField2Ex1.Value) > 120
+                uialert(app.MarsRoverNavigationAppUIFigure,"Pan angle range should be between -120 to 120 deg",'Invalid Pan Angle Range');
+               
+                return;
+            end
+            
+            if str2double(app.CameraPanEditField1Ex1.Value) == str2double(app.CameraPanEditField2Ex1.Value) 
+                uialert(app.MarsRoverNavigationAppUIFigure,"Start and end pan angle values should not be same",'Invalid Pan Angle Range');
+                 
+                return;
+            end
+
+            evalin('base',['cam_pan_ex1 = [',num2str(pan_range),'];']);
+
+            if str2double(app.CameraPitchEditField.Value) < 10 || str2double(app.CameraPitchEditField.Value) > 30
+                uialert(app.MarsRoverNavigationAppUIFigure,"Pitch angle should be between 10 to 30 deg",'Invalid Pitch Angle');               
+                return;
+            end
+            evalin('base',['cam_pitch_ex1 = ',app.CameraPitchEditField.Value,';']);
+            
+
+            %
             model = 'mars_rover_ex_1a';
 
             if ~bdIsLoaded(model)
@@ -693,8 +833,9 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
             app.enableEx3ComponentsDuringSimulation('off');
 
             pause(0.0005)
+            
 
-            if strcmp(event.Source.Text,'Stop')
+            if strcmp(event.Source.Text,'Stop') 
 
                 app.statusLabel.Text = 'Stopping';
                 simStatus = get_param(model, 'SimulationStatus');
@@ -708,7 +849,7 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
                 app.OnlinePathPlansAxes.Parent.Parent.Visible = 'off';
                 app.RockDetectionAxes.Parent.Parent.Visible = 'off';
 
-                CameraEx1ValueChanged(app);
+%                 CameraEx1ValueChanged(app);
 
                 app.SimulateButtonEx1a.Enable = 'off';
                 pause(0.0005)
@@ -734,13 +875,16 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
                 end
             end
 
-            app.enableEx1ComponentsDuringSimulation('on');
-            app.enableEx2ComponentsDuringSimulation('on');
-            app.enableEx3ComponentsDuringSimulation('on');
+            if isvalid(app)
 
-            app.statusBarGrid.Visible = 'off';
-            app.SimulateButtonEx1a.Enable = 'on';
-            app.SimulateButtonEx1a.Text = 'Calibrate';
+                app.enableEx1ComponentsDuringSimulation('on');
+                app.enableEx2ComponentsDuringSimulation('on');
+                app.enableEx3ComponentsDuringSimulation('on');
+
+                app.statusBarGrid.Visible = 'off';
+                app.SimulateButtonEx1a.Enable = 'on';
+                app.SimulateButtonEx1a.Text = 'Calibrate';                
+            end
 
         end
 
@@ -752,15 +896,6 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
             app.statusLabel.Text = 'Compiling';
             pause(0.0005)
             app.RockDetectionAxes.Parent.Parent.Visible ='off';
-
-%             app.CameraPanEditField1Ex1.Enable = 'off';
-%             app.CameraPanEditField2Ex1.Enable = 'off';
-%             app.CameraPitchEditField.Enable = 'off';
-%             app.GoalLocationXEditField.Enable = 'off';
-%             app.PlanaEgressPathButton.Enable = 'off';
-%             app.PlanaEgressPathButton.Enable = 'off';
-%             app.SimulateButtonEx1a.Enable = 'off';
-
 
             app.enableEx1ComponentsDuringSimulation('off');
             app.enableEx2ComponentsDuringSimulation('off');
@@ -776,8 +911,7 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
                 end
 
             else
-
-                CameraEx1ValueChanged(app);
+                
                 app.OnlinePathPlansAxes.Parent.Parent.Visible = 'on';               
                
                 app.SimulateButtonEx1.Enable = 'off';
@@ -791,7 +925,8 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
 
                     if strcmp(simStatus,'stopped')
                         app.statusLabel.Text = 'Completed';
-                        app.statusBarGrid.Visible = 'off';                         
+                        app.statusBarGrid.Visible = 'off'; 
+                        
                     end
 
                  catch ME 
@@ -806,25 +941,123 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
                 end
             end
 
+            if isvalid(app)
+
+
             app.enableEx1ComponentsDuringSimulation('on');
             app.enableEx2ComponentsDuringSimulation('on');
             app.enableEx3ComponentsDuringSimulation('on');
 
             app.statusBarGrid.Visible = 'off';
             app.SimulateButtonEx1.Enable = 'on';
-            app.SimulateButtonEx1.Text = 'Calibrate';          
+            app.SimulateButtonEx1.Text = 'Calibrate'; 
+            evalin('base','mars_rover_ex_1b_plots');
+            app.TabGroup.SelectedTab = app.RoverOutputsTab;
+
+            end
                                            
         end
 
-        function CameraEx2ValueChanged(app,event)
+%         function CameraEx2ValueChanged1(app,event)
+% 
+%             pan_range = [str2double(app.CameraPanEditField1Ex2.Value) str2double(app.CameraPanEditField2Ex2.Value)];
+%            
+% %             evalin('base',['detectionThreshold_ex2 = ',app.DetectionThresholdEditField.Value,';']);
+% 
+%             
+% 
+%               evalin('base',['cam_pan_ex2 = [',num2str(pan_range),'];']);
+%               app.SimulateButtonEx2.Enable = 'on';
+% 
+%               if strcmp(event.Source.Tag,'Ex2pan1')
+%               CameraEx2ValueChanged2(app,event)
+%               DetectionThresholdEditFieldValueChanged(app,event)
+%               end
+% 
+% 
+%         end
 
-            pan_range = [str2double(app.CameraPanEditField1Ex2.Value) str2double(app.CameraPanEditField2Ex2.Value)];
-            evalin('base',['Rover.cam_pan_ex2 = [',num2str(pan_range),'];']);
-            evalin('base',['Rover.detectionThreshold = ',app.DetectionThresholdEditField.Value,';']);
+%         function CameraEx2ValueChanged2(app,event)
+% 
+%              pan_range = [str2double(app.CameraPanEditField1Ex2.Value) str2double(app.CameraPanEditField2Ex2.Value)];
+%            
+% %             evalin('base',['detectionThreshold_ex2 = ',app.DetectionThresholdEditField.Value,';']);
+% 
+%             if str2double(app.CameraPanEditField2Ex2.Value) < -120 || str2double(app.CameraPanEditField2Ex2.Value) > 120
+%                 uialert(app.MarsRoverNavigationAppUIFigure,"Pan angle range should be between -120 to 120 deg",'Invalid Pan Angle Range');
+%                 app.SimulateButtonEx2.Enable = 'off';
+%                 return;
+%             end
+% 
+%              if str2double(app.CameraPanEditField1Ex2.Value) == str2double(app.CameraPanEditField2Ex2.Value) 
+%                 uialert(app.MarsRoverNavigationAppUIFigure,"Start and End pan angle values should not be same",'Invalid Pan Angle Range');
+%                 app.SimulateButtonEx2.Enable = 'off';
+%                 return;
+%              end            
+% 
+%              evalin('base',['cam_pan_ex2 = [',num2str(pan_range),'];']);
+%              app.SimulateButtonEx2.Enable = 'on';
+% 
+%              if strcmp(event.Source.Tag,'Ex2pan2')
+%              CameraEx2ValueChanged1(app,event)
+%              DetectionThresholdEditFieldValueChanged(app,event)
+%              end
+%             
+%         end
 
-        end
+%         function DetectionThresholdEditFieldValueChanged(app,event)
+% 
+%             dt = str2double(app.DetectionThresholdEditField.Value);
+% 
+%             if dt < 0 || dt > 1
+%                 uialert(app.MarsRoverNavigationAppUIFigure,"Detection threshold should be between 0 to 1",'Invalid Detection Threshold');
+%                 app.SimulateButtonEx2.Enable = 'off';
+%                 return;
+%             end
+%        
+%             evalin('base',['detectionThreshold_ex2 = ',app.DetectionThresholdEditField.Value,';']);
+%             app.SimulateButtonEx2.Enable = 'on';
+%             if strcmp(event.Source.Tag,'detection_threshold')
+%                 CameraEx2ValueChanged1(app,event)
+%                 CameraEx2ValueChanged2(app,event)
+%             end
+% 
+%         end
 
         function SimulateButtonEx2ButtonDown(app,event)
+
+
+            % Error handling 
+            pan_range = [str2double(app.CameraPanEditField1Ex2.Value) str2double(app.CameraPanEditField2Ex2.Value)];
+
+             if str2double(app.CameraPanEditField1Ex2.Value) < -120 || str2double(app.CameraPanEditField1Ex2.Value) > 120
+                uialert(app.MarsRoverNavigationAppUIFigure,"Pan angle range should be between -120 to 120 deg",'Invalid Pan Angle Range');                
+                return;
+            end
+
+             if str2double(app.CameraPanEditField2Ex2.Value) < -120 || str2double(app.CameraPanEditField2Ex2.Value) > 120
+                uialert(app.MarsRoverNavigationAppUIFigure,"Pan angle range should be between -120 to 120 deg",'Invalid Pan Angle Range');                
+                return;
+            end
+
+             if str2double(app.CameraPanEditField1Ex2.Value) == str2double(app.CameraPanEditField2Ex2.Value) 
+                uialert(app.MarsRoverNavigationAppUIFigure,"Start and End pan angle values should not be same",'Invalid Pan Angle Range');                
+                return;
+             end
+              
+
+            evalin('base',['cam_pan_ex2 = [',num2str(pan_range),'];']);             
+
+            dt = str2double(app.DetectionThresholdEditField.Value);
+
+            if dt < 0 || dt > 1
+                uialert(app.MarsRoverNavigationAppUIFigure,"Detection threshold should be between 0 to 1",'Invalid Detection Threshold');                
+                return;
+            end
+       
+            evalin('base',['detectionThreshold_ex2 = ',app.DetectionThresholdEditField.Value,';']);
+
+
 
 
             model = 'mars_rover_ex_2';
@@ -849,8 +1082,7 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
                     set_param(model, 'SimulationCommand', 'stop')
                 end
             else
-
-                CameraEx2ValueChanged(app);
+                
                 app.SimulateButtonEx2.Enable = 'off';
                 pause(0.0005)
 
@@ -876,6 +1108,10 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
 
             end
 
+
+            if isvalid(app)
+
+
             app.enableEx1ComponentsDuringSimulation('on');
             app.enableEx2ComponentsDuringSimulation('on');
             app.enableEx3ComponentsDuringSimulation('on');
@@ -884,11 +1120,14 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
             app.SimulateButtonEx2.Enable = 'on';
             app.SimulateButtonEx2.Text = 'Detect';
 
+            end
+
         end
 
         function SimulateButtonEx3ButtonDown(app,event)
 
             model = 'mars_rover_ex_3';
+            
             if ~bdIsLoaded(model)
                 load_system(model);
             end            
@@ -905,23 +1144,27 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
                 app.statusBarGrid.Visible = 'on';
                 app.statusLabel.Text = 'Compiling';
                 pause(0.0005)
-
                
                 app.enableEx1ComponentsDuringSimulation('off');
                 app.enableEx2ComponentsDuringSimulation('off');   
                 app.enableEx3ComponentsDuringSimulation('off');               
-                                
-                CameraEx2ValueChanged(app);
+                
                 app.SimulateButtonEx3.Enable = 'off';
                 pause(0.0005)
 
                 try
+                    flag = isMechExplorerVisible(bdroot);
+                    if ~flag
+                    set_param(model,'FastRestart','off');
+                    end
                     out = sim(model);
                     assignin('base','sm_mars_rover_out_ex3',out);
+%                     set_param(model, 'SimulationCommand', 'start')
                     simStatus = get_param(model, 'SimulationStatus');
                     if strcmp(simStatus,'stopped')
                         app.statusLabel.Text = 'Completed';
                         app.statusBarGrid.Visible = 'off';
+                        
                     end
                 catch ME
                     app.enableEx1ComponentsDuringSimulation('on');
@@ -936,6 +1179,9 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
 
             end
 
+
+            if isvalid(app)
+
             app.enableEx1ComponentsDuringSimulation('on');
             app.enableEx2ComponentsDuringSimulation('on');
             app.enableEx3ComponentsDuringSimulation('on');
@@ -943,6 +1189,9 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
             app.statusBarGrid.Visible = 'off';
             app.SimulateButtonEx3.Enable = 'on';
             app.SimulateButtonEx3.Text = 'Simulate';
+            evalin('base','mars_rover_ex3_plots');
+            app.TabGroup.SelectedTab = app.RoverOutputsTab;
+            end
 
         end
 
@@ -990,25 +1239,129 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
 
         function GoalLocationXValueChangedFcn(app,event)
 
+            endLocation = str2double(app.GoalLocationXEditField.Value);
+            
+            if endLocation ~= app.lastXValue
+                app.SimulateButtonEx1.Enable = 'off';
+            end
+
+            startLocation = str2double(app.StartLocationXEditField.Value);
+
+            if endLocation(1) < startLocation(1)
+                uialert(app.MarsRoverNavigationAppUIFigure,"Reverse directions are not supported. Select a goal X value which is greater than start X value.",'Invalid egress path')
+                return;
+            end
+            
+            if endLocation(1) < 7 || endLocation(1) > 15 
+                uialert(app.MarsRoverNavigationAppUIFigure,"Egress path should be, at least 2 meters and at most 10 meters long.",'Invalid egress path');
+                return;
+            end
+
             UpdateVisualizationButtonPushed(app, event);
+
+        end
+
+        function GoalLocationEx3XValueChangedFcn(app,event)
+
+            xLocation = str2double(app.GoalLocationXEditField.Value);
+            
+            if xLocation(1) >= 35 || xLocation(1) <= 5 
+                uialert(app.MarsRoverNavigationAppUIFigure,"Goal location is outside of traversable region. Both x and y values should be greater than 5 meters and less than 35 meters.",'Invalid goal location');
+                return;
+            end
+
+            if xLocation ~= app.lastGoalLocationValue(1)
+                app.SimulateButtonEx3.Enable = 'off';
+            end            
+
+        end
+
+        function GoalLocationEx3YValueChangedFcn(app,event)
+
+            yLocation = str2double(app.GoalLocationYEditField.Value);
+            
+            if yLocation(1) >= 35 || yLocation(1) <= 5 
+                uialert(app.MarsRoverNavigationAppUIFigure,"Goal location is outside of traversable region. Both x and y values should be greater than 5 meters and less than 35 meters.",'Invalid goal location');
+                return;
+            end
+
+            if yLocation ~= app.lastGoalLocationValue(2)
+                app.SimulateButtonEx3.Enable = 'off';
+            end
+
+        end
+
+        function GoalLocationEx3TValueChangedFcn(app,event)
+
+            tLocation = str2double(app.GoalLocationTEditField.Value);           
+           
+
+            if tLocation ~= app.lastGoalLocationValue(3)
+                app.SimulateButtonEx3.Enable = 'off';
+            end
 
         end
 
         function UpdateGoalLocationVizButtonPushed(app,event)
 
-              UpdateVisualizationButtonPushed(app, event);
+            UpdateVisualizationButtonPushed(app, event);
+            
+            endLocation = [str2double(app.GoalLocationXEditFieldEx3.Value) str2double(app.GoalLocationYEditFieldEx3.Value) str2double(app.GoalLocationTEditFieldEx3.Value)];
 
-        end
+            if any(endLocation ~= app.lastGoalLocationValue)
+                app.SimulateButtonEx3.Enable = 'off';
+            end
 
-        function OutputsTabCallback(app,event)
 
-            if ~app.Exercise1Panel.Collapsed
-                evalin('base','mars_rover_ex_1b_plots');
-            elseif ~app.Exercise3Panel.Collapsed
-                evalin('base','mars_rover_ex3_plots');
+            if endLocation(1) > 35 || endLocation(1) < 5 || endLocation(2) > 35 || endLocation(2) < 5
+                uialert(app.MarsRoverNavigationAppUIFigure,"Goal location is outside of traversable region. Both x and y values should be greater than 5 meters and less than 35 meters.",'Invalid goal location');
+                return;
             end
 
         end
+
+        function CloseRequestFcn(app,event)
+            
+            d = uiprogressdlg(app.MarsRoverNavigationAppUIFigure,'Message','Closing app...','Title','Close');
+            d.Value = 0.5;
+                
+            models = {'mars_rover_ex_1a','mars_rover_ex_1b','mars_rover_ex_2','mars_rover_ex_3'};
+            simStatus = {'','','',''};
+            for i = 1:length(models)          
+           
+                if bdIsLoaded(models{i})
+                set_param(models{i}, 'SimulationCommand', 'stop') 
+                simStatus{i} = get_param(models{i},'SimulationStatus');
+                end                                     
+            
+            end
+            pause(5)   
+
+            if any(ismember(simStatus,'running'))
+                delete(d)
+                uialert(app.MarsRoverNavigationAppUIFigure,...
+                    'Make sure all the exercise simulations are stopped before attempting to close the app.','Close');                
+                return;
+            else
+
+                d.Value = 1;
+                delete(d)
+                try
+                close(app.MarsRoverNavigationAppUIFigure,'force');
+                catch
+                end
+            end
+
+        end
+%         function OutputsTabCallback(app,event)
+% 
+%             if ~app.Exercise1Panel.Collapsed
+%                 evalin('base','mars_rover_ex_1b_plots');
+%             elseif ~app.Exercise3Panel.Collapsed
+%                 evalin('base','mars_rover_ex3_plots');
+%             end
+% 
+%         end
 
 
     end
@@ -1024,7 +1377,9 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
         function createLayouts(app)
             app.MarsRoverNavigationAppUIFigure = uifigure;
             app.MarsRoverNavigationAppUIFigure.Name = 'Mars Rover Navigation App';
+            app.MarsRoverNavigationAppUIFigure.CloseRequestFcn = createCallbackFcn(app, @CloseRequestFcn, true);
             app.MarsRoverNavigationAppUIFigure.Position = [50 200 1302 786];
+            app.MarsRoverNavigationAppUIFigure.Tag = 'uifig';
             app.MainGridLayout = uigridlayout(app.MarsRoverNavigationAppUIFigure, [12 3]);
             app.MainGridLayout.RowHeight = {'1x'};
             app.MainGridLayout.ColumnWidth = {'fit', '1x', '1x'};
@@ -1068,7 +1423,7 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
             axesCamera(app, app.RoverCamsTab);
 
             app.RoverOutputsTab = uitab(app.TabGroup);
-            app.RoverOutputsTab.ButtonDownFcn = createCallbackFcn(app, @OutputsTabCallback, true);
+            %app.RoverOutputsTab.ButtonDownFcn = createCallbackFcn(app, @OutputsTabCallback, true);
             app.RoverOutputsTab.Title = 'States';
             app.RoverOutputsTab.BackgroundColor = 'white';
             axesStates(app, app.RoverOutputsTab);
@@ -1156,8 +1511,8 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
             axesPanel4.Title = 'Navigation View';
             axesPanel4.BackgroundColor = 'white';
             axes4GL = uigridlayout(axesPanel4, [1 1]);
-            axes4GL.RowHeight = {'1x'};
-            axes4GL.ColumnWidth = {'1x'};
+            axes4GL.RowHeight = {'fit'};
+            axes4GL.ColumnWidth = {'fit'};
             app.OnlinePathPlansAxes = uiaxes(axes4GL);
             app.OnlinePathPlansAxes.Layout.Row = 1;
             app.OnlinePathPlansAxes.Layout.Column = 1;
@@ -1317,7 +1672,7 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
 
             % Create CameraPitchEditField
             app.CameraPitchEditField = uieditfield(swapGL, 'text');
-            app.CameraPitchEditField.ValueChangedFcn = createCallbackFcn(app, @CameraEx1ValueChanged, true);
+       %     app.CameraPitchEditField.ValueChangedFcn = createCallbackFcn(app, @CameraEx1ValueChanged, true);
             app.CameraPitchEditField.Editable = 'on';
             app.CameraPitchEditField.Layout.Row = 1;
             app.CameraPitchEditField.Layout.Column = 2;
@@ -1326,11 +1681,11 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
             app.CameraPanLabelEx1 = uilabel(swapGL);
             app.CameraPanLabelEx1.Layout.Row = 2;
             app.CameraPanLabelEx1.Layout.Column = 1;
-            app.CameraPanLabelEx1.Text = 'Camera Pan (deg)';
+            app.CameraPanLabelEx1.Text = 'Camera Pan (-120 to 120 deg)';
 
             % Create CameraPanEditField1
             app.CameraPanEditField1Ex1 = uieditfield(swapGL, 'text');
-            app.CameraPanEditField1Ex1.ValueChangedFcn = createCallbackFcn(app, @CameraEx1ValueChanged, true);
+        %    app.CameraPanEditField1Ex1.ValueChangedFcn = createCallbackFcn(app, @CameraEx1ValueChanged, true);
             app.CameraPanEditField1Ex1.Layout.Row = 2;
             app.CameraPanEditField1Ex1.Layout.Column = 2;
 
@@ -1343,7 +1698,7 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
 
             % Create CameraPanEditField2
             app.CameraPanEditField2Ex1 = uieditfield(swapGL, 'text');
-            app.CameraPanEditField1Ex1.ValueChangedFcn = createCallbackFcn(app, @CameraEx1ValueChanged, true);
+         %   app.CameraPanEditField2Ex1.ValueChangedFcn = createCallbackFcn(app, @CameraEx1ValueChanged2, true);
             app.CameraPanEditField2Ex1.Layout.Row = 2;
             app.CameraPanEditField2Ex1.Layout.Column = 4;
 
@@ -1509,13 +1864,14 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
             app.CameraPanLabelEx2 = uilabel(exGL);
             app.CameraPanLabelEx2.Layout.Row = 1;
             app.CameraPanLabelEx2.Layout.Column = 1;
-            app.CameraPanLabelEx2.Text = 'Camera Pan (deg)';
+            app.CameraPanLabelEx2.Text = 'Camera Pan (-120 to 120 deg)';
 
             % Create CameraPanEditField1
             app.CameraPanEditField1Ex2 = uieditfield(exGL, 'text');
-            app.CameraPanEditField1Ex2.ValueChangedFcn = createCallbackFcn(app, @CameraEx2ValueChanged, true);
+          %  app.CameraPanEditField1Ex2.ValueChangedFcn = createCallbackFcn(app, @CameraEx2ValueChanged1, true);
             app.CameraPanEditField1Ex2.Layout.Row = 1;
             app.CameraPanEditField1Ex2.Layout.Column = 2;
+            app.CameraPanEditField1Ex2.Tag = 'Ex2pan1';
 
             % Create CameraPanEditLabel2
             app.CameraPanEditLabelEx2 = uilabel(exGL);
@@ -1526,9 +1882,10 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
 
             % Create CameraPanEditField2
             app.CameraPanEditField2Ex2 = uieditfield(exGL, 'text');
-            app.CameraPanEditField2Ex2.ValueChangedFcn = createCallbackFcn(app, @CameraEx2ValueChanged, true);
+           % app.CameraPanEditField2Ex2.ValueChangedFcn = createCallbackFcn(app, @CameraEx2ValueChanged2, true);
             app.CameraPanEditField2Ex2.Layout.Row = 1;
             app.CameraPanEditField2Ex2.Layout.Column = 4;
+            app.CameraPanEditField2Ex2.Tag = 'Ex2pan2';
 
             % Create Distance Threshold - 0.565
             app.DetectionThresholdLabel = uilabel(exGL);
@@ -1538,9 +1895,10 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
 
             % Create CameraPanEditField1
             app.DetectionThresholdEditField = uieditfield(exGL, 'text');
-            app.DetectionThresholdEditField.ValueChangedFcn = createCallbackFcn(app, @CameraEx2ValueChanged, true);
+           % app.DetectionThresholdEditField.ValueChangedFcn = createCallbackFcn(app, @DetectionThresholdEditFieldValueChanged, true);
             app.DetectionThresholdEditField.Layout.Row = 2;
             app.DetectionThresholdEditField.Layout.Column = 2;
+            app.DetectionThresholdEditField.Tag = 'detection_threshold';
 
             % Create PlanaEgressPathButton
             buttonLayout = uigridlayout(gridlayout, [1 4]);
@@ -1581,7 +1939,7 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
             % Create VisualizeunknownrocksCheckBox
             app.VisualizeunknownrocksCheckBox = uicheckbox(checkboxLayout);
             app.VisualizeunknownrocksCheckBox.ValueChangedFcn = createCallbackFcn(app, @VisualizeunknownrocksCheckBoxValueChanged, true);
-            app.VisualizeunknownrocksCheckBox.Text = 'Visualize unknown rocks';
+            app.VisualizeunknownrocksCheckBox.Text = 'Visualize unknown terrain obstacles';
             app.VisualizeunknownrocksCheckBox.Layout.Row = 2;
             app.VisualizeunknownrocksCheckBox.Layout.Column = 1;
             app.VisualizeunknownrocksCheckBox.Value = true;
@@ -1672,16 +2030,19 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
 
             % Create GoalLocationxyEditField
             app.GoalLocationXEditFieldEx3 = uieditfield(editfieldLayout, 'text');
+          %  app.GoalLocationXEditFieldEx3.ValueChangedFcn = createCallbackFcn(app, @GoalLocationEx3XValueChangedFcn, true);
             app.GoalLocationXEditFieldEx3.Editable = 'on';
             app.GoalLocationXEditFieldEx3.Layout.Row = 3;
             app.GoalLocationXEditFieldEx3.Layout.Column = 2;
 
             app.GoalLocationYEditFieldEx3 = uieditfield(editfieldLayout, 'text');
+          %  app.GoalLocationYEditFieldEx3.ValueChangedFcn = createCallbackFcn(app, @GoalLocationEx3YValueChangedFcn, true);
             app.GoalLocationYEditFieldEx3.Editable = 'on';
             app.GoalLocationYEditFieldEx3.Layout.Row = 3;
             app.GoalLocationYEditFieldEx3.Layout.Column = 3;
 
             app.GoalLocationTEditFieldEx3 = uieditfield(editfieldLayout, 'text');
+           % app.GoalLocationTEditFieldEx3.ValueChangedFcn = createCallbackFcn(app, @GoalLocationEx3TValueChangedFcn, true);
             app.GoalLocationTEditFieldEx3.Editable = 'on';
             app.GoalLocationTEditFieldEx3.Layout.Row = 3;
             app.GoalLocationTEditFieldEx3.Layout.Column = 4;
@@ -1758,7 +2119,7 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
             app.PlanaEgressPathButton.Enable = flag;
             app.PlanaEgressPathButton.Enable = flag;
             app.SimulateButtonEx1a.Enable = flag ;
-            app.SimulateButtonEx1.Enable = flag ;
+            app.SimulateButtonEx1.Enable = false ;
 
         end
 
@@ -1771,8 +2132,9 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
             app.IncludeknownterrainobstaclesCheckBox.Enable = flag;
             app.VisualizeunknownrocksCheckBox.Enable = flag;
             app.PlanPathButtonEx3.Enable = flag;
-            app.SimulateButtonEx3.Enable = flag ;
+            app.SimulateButtonEx3.Enable = false ;
             app.PickGoalpointsinMapCheckBox.Enable = flag;
+            app.UpdateGoalLocationViz.Enable = flag;
 
         end
 
