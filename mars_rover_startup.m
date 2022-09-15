@@ -11,6 +11,12 @@ addpath('mars_rover_helpers')
 addpath('mars_rover_data')
 addpath('mars_rover_yolov2_dl')
 
+autoSavedFiles = dir('*.autosave')';
+
+if ~isempty(autoSavedFiles)
+    delete(autoSavedFiles.name)    
+end
+
 mapp = MarsRoverNavigationApp;
 % mapp.RightPanel.Visible = 'off';
 d = uiprogressdlg(mapp.MarsRoverNavigationAppUIFigure,'Title','Initializing',...

@@ -952,7 +952,7 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
             app.SimulateButtonEx1.Enable = 'on';
             app.SimulateButtonEx1.Text = 'Calibrate'; 
             evalin('base','mars_rover_ex_1b_plots');
-            app.TabGroup.SelectedTab = app.RoverOutputsTab;
+            
 
             end
                                            
@@ -1190,7 +1190,7 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
             app.SimulateButtonEx3.Enable = 'on';
             app.SimulateButtonEx3.Text = 'Simulate';
             evalin('base','mars_rover_ex3_plots');
-            app.TabGroup.SelectedTab = app.RoverOutputsTab;
+            
             end
 
         end
@@ -1464,6 +1464,7 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
             app.LeftNavCamAxes = uiaxes(axes1GL);
             app.LeftNavCamAxes.Layout.Row = 1;
             app.LeftNavCamAxes.Layout.Column = 1;
+            app.LeftNavCamAxes.Toolbar.Visible = 'off';
 
             %             app.RightNavCamAxes = uiaxes(axesGL);
             %             app.RightNavCamAxes.Layout.Row = 1;
@@ -1481,6 +1482,7 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
             app.RightNavCamAxes = uiaxes(axes2GL);
             app.RightNavCamAxes.Layout.Row = 1;
             app.RightNavCamAxes.Layout.Column = 1;
+            app.RightNavCamAxes.Toolbar.Visible = 'off';
 
             %             app.RockDetectionAxes = uiaxes(axesGL);
             %             app.RockDetectionAxes.Layout.Row = 2;
@@ -1516,6 +1518,7 @@ classdef MarsRoverNavigationApp < matlab.apps.AppBase
             app.OnlinePathPlansAxes = uiaxes(axes4GL);
             app.OnlinePathPlansAxes.Layout.Row = 1;
             app.OnlinePathPlansAxes.Layout.Column = 1;
+            app.OnlinePathPlansAxes.Toolbar.Visible = 'off';
 
         end
 
